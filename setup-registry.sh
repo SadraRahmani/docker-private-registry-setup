@@ -74,7 +74,7 @@ echo "$PASSWORD" | sudo htpasswd -Bci "$AUTH_DIR/htpasswd" "$USERNAME"
 # Run the Docker registry container
 # ---------------------------------------------
 echo "Starting Docker registry container..."
-sudo docker run -d -p 443:5000 --restart=always --name registry \
+sudo docker run -d -p 5000:5000 --restart=always --name registry \
   -v "$DATA_DIR":/var/lib/registry \
   -v "$CERTS_DIR":/certs \
   -v "$AUTH_DIR":/auth \
