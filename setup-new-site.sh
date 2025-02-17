@@ -1,35 +1,32 @@
 #!/bin/bash
 
-# Check if a domain name is provided
-if [ -z "$1" ]; then
-    echo "Usage: $0 <domain>"
+# Check if a domain name and port number are provided
+if [ -z "$1" ] || [ -z "$2" ]; then
+    echo "Usage: $0 <domain> <port>"
     exit 1
 fi
 
 DOMAIN=$1
+PORT=$2
 NGINX_CONF="/etc/nginx/sites-available/$DOMAIN"
 NGINX_ENABLED="/etc/nginx/sites-enabled/$DOMAIN"
-WEB_ROOT="/var/www/$DOMAIN"
 
-# Stop Nginx to free port 80 for Certbot
-echo "Stopping Nginx..."
-sudo systemctl stop nginx
+# Check if renewal is needed
+if sudo certbot certificates | grep -q "VALID: .*([1-9] days\|[12][0-9] days\|0 days)"; then
+    echo "🔔 Certificate renewal required. Stopping Nginx..."
+    sudo systemctl stop nginx
 
-# Issue SSL certificate
-echo "Issuing SSL certificate for $DOMAIN..."
-sudo certbot certonly --standalone -d "$DOMAIN" --non-interactive --agree-tos --email admin@$DOMAIN
+    echo "🔄 Renewing certificates..."
+    sudo certbot renew --quiet
 
-# Restart Nginx after cert issuance
-echo "Starting Nginx..."
-sudo systemctl start nginx
-
-# Create web root directory
-echo "Creating web root directory at $WEB_ROOT..."
-sudo mkdir -p "$WEB_ROOT"
-sudo chown -R www-data:www-data "$WEB_ROOT"
+    echo "🚀 Restarting Nginx..."
+    sudo systemctl start nginx
+else
+    echo "✅ Certificates are valid. No renewal needed."
+fi
 
 # Create Nginx configuration
-echo "Creating Nginx configuration for $DOMAIN..."
+echo "📝 Creating Nginx reverse proxy configuration for $DOMAIN (forwarding to port $PORT)..."
 sudo tee "$NGINX_CONF" > /dev/null <<EOF
 server {
     listen 80;
@@ -44,25 +41,26 @@ server {
     ssl_certificate /etc/letsencrypt/live/$DOMAIN/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem;
 
-    root $WEB_ROOT;
-    index index.html index.htm;
-
     location / {
-        try_files \$uri \$uri/ =404;
+        proxy_pass http://127.0.0.1:$PORT;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
     }
 }
 EOF
 
 # Enable the site
-echo "Enabling $DOMAIN..."
-sudo ln -s "$NGINX_CONF" "$NGINX_ENABLED"
+echo "✅ Enabling $DOMAIN..."
+sudo ln -sf "$NGINX_CONF" "$NGINX_ENABLED"
 
 # Test Nginx configuration
-echo "Testing Nginx configuration..."
+echo "🔍 Testing Nginx configuration..."
 sudo nginx -t
 
-# Restart Nginx to apply changes
-echo "Restarting Nginx..."
+# Restart Nginx
+echo "🚀 Restarting Nginx..."
 sudo systemctl restart nginx
 
-echo "✅ Site $DOMAIN has been successfully added and secured with SSL!"
+echo "🎉 $DOMAIN is now live and reverse proxied to port $PORT with SSL!"
