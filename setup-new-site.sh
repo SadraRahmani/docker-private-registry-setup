@@ -53,16 +53,8 @@ EOF
 echo "Enabling $DOMAIN..."
 sudo ln -sf "$NGINX_CONF" "$NGINX_ENABLED"
 
-# Reload Nginx
-echo "Reloading Nginx..."
-sudo systemctl reload nginx
-
-# Issue SSL certificate using webroot (no need to stop Nginx)
+# Issue SSL certificate using webroot
 echo "Issuing SSL certificate for $DOMAIN..."
 sudo certbot certonly --webroot -w /var/www/html -d "$DOMAIN" --non-interactive --agree-tos --email admin@$DOMAIN
-
-# Reload Nginx to apply SSL changes
-echo "Final Nginx restart..."
-sudo systemctl restart nginx
 
 echo "✅ Site $DOMAIN is now secured with SSL and reverse proxying to port $PORT!"
