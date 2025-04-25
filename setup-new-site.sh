@@ -42,13 +42,13 @@ server {
 
     resolver 127.0.0.11 valid=10s ipv6=off;
     location / {
-        set $upstream "$CONTAINERNAME:$PORT";
+        set \$upstream "$CONTAINERNAME:$PORT";
         
-        proxy_pass         http://$upstream;
-        proxy_set_header   Host              $host;
-        proxy_set_header   X-Real-IP         $remote_addr;
-        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
-        proxy_set_header   X-Forwarded-Proto $scheme;
+        proxy_pass         http://\$upstream;
+        proxy_set_header   Host              \$host;
+        proxy_set_header   X-Real-IP         \$remote_addr;
+        proxy_set_header   X-Forwarded-For   \$proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto \$scheme;
 
         proxy_connect_timeout 5s;
         proxy_read_timeout    60s;
